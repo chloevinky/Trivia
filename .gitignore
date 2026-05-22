@@ -1,6 +1,3 @@
-/gradle/
-/run/
-gradlew
-gradlew.bat
 /.gradle/
 /build/
+/run/

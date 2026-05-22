@@ -131,28 +131,23 @@ Output is a single remapped `.jar` ready to drop into a server's `mods/` directo
 
 <h3>Ubuntu quickstart (copy-paste)</h3>
 
-End-to-end on a fresh Ubuntu 22.04 / 24.04 install. Adjust the repo URL if you're
-building from a fork:
+End-to-end on a fresh Ubuntu 22.04 / 24.04 install. The Gradle wrapper is committed,
+so you only need a JDK - no system Gradle install required. Adjust the repo URL if
+you're building from a fork:
 
 ```bash
-# 1. Install JDK 21 (works for the Java 17 target), git and Gradle
+# 1. Install JDK 21 (works for the Java 17 target) and git
 sudo apt update
-sudo apt install -y openjdk-21-jdk git gradle
+sudo apt install -y openjdk-21-jdk git
 
 # 2. Clone the repo
 git clone https://github.com/chloevinky/Trivia.git
 cd Trivia
 
-# 3. Generate the Gradle wrapper (the wrapper jar is gitignored)
-gradle wrapper
-
-# 4. Add Lucko's Maven repo for fabric-permissions-api (one-time fix-up)
-sed -i 's|mavenCentral()|mavenCentral()\n    maven { url "https://maven.lucko.me/" }|' build.gradle
-
-# 5. Build the deployable jar
+# 3. Build the deployable jar
 ./gradlew build
 
-# 6. The jar to upload to your server:
+# 4. The jar to upload to your server:
 ls -lh build/libs/Trivia-*.jar
 ```
 
@@ -165,20 +160,6 @@ default questions, rewards and config files.
 - **JDK 17 or newer** (the build targets Java 17 bytecode). Verify with `java -version`.
 - **Internet access** for the first build - Gradle will download Minecraft, Yarn mappings,
   Fabric API and Adventure into its local cache (a few hundred MB; subsequent builds are fast).
-
-<h3>Generate the Gradle wrapper (one-time, if missing)</h3>
-
-This repository's `.gitignore` excludes `gradle/wrapper/gradle-wrapper.jar`, so a fresh
-clone has `gradlew` but not the wrapper jar it needs. Generate it once with a system
-Gradle install (any 8.x is fine):
-
-```bash
-gradle wrapper
-```
-
-After this, `./gradlew` works without a system Gradle install. You can skip this step if
-the wrapper jar is already present, or just use the system `gradle` instead of `./gradlew`
-in the commands below.
 
 <h3>Build the jar</h3>
 
@@ -213,11 +194,6 @@ build/libs/Trivia-1.2.5+1.21.1.jar
 
 <h3>Troubleshooting the build</h3>
 
-- **`Could not find me.lucko:fabric-permissions-api:0.2-SNAPSHOT`** - the snapshot lives on
-  Lucko's Maven repo. Add it to `build.gradle` under `repositories { }`:
-  ```groovy
-  maven { url "https://maven.lucko.me/" }
-  ```
 - **`error: invalid target release: 17`** - your `JAVA_HOME` points at JDK < 17. Install a
   newer JDK (Temurin, Adoptium, etc.) and re-export `JAVA_HOME`.
 - **Slow first build / partial download failures** - re-run `./gradlew build --refresh-dependencies`.
