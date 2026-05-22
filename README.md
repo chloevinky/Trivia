@@ -123,3 +123,71 @@ keyed by language code. You can hand-edit any entry to override the auto-transla
 ```
 
 Trivia reads the cache on startup and on `/trivia reload`.
+
+<h2>Building from source</h2>
+
+The mod is built with [Fabric Loom](https://fabricmc.net/wiki/tutorial:loom) / Gradle.
+Output is a single remapped `.jar` ready to drop into a server's `mods/` directory.
+
+<h3>Prerequisites</h3>
+
+- **JDK 17 or newer** (the build targets Java 17 bytecode). Verify with `java -version`.
+- **Internet access** for the first build - Gradle will download Minecraft, Yarn mappings,
+  Fabric API and Adventure into its local cache (a few hundred MB; subsequent builds are fast).
+
+<h3>Generate the Gradle wrapper (one-time, if missing)</h3>
+
+This repository's `.gitignore` excludes `gradle/wrapper/gradle-wrapper.jar`, so a fresh
+clone has `gradlew` but not the wrapper jar it needs. Generate it once with a system
+Gradle install (any 8.x is fine):
+
+```bash
+gradle wrapper
+```
+
+After this, `./gradlew` works without a system Gradle install. You can skip this step if
+the wrapper jar is already present, or just use the system `gradle` instead of `./gradlew`
+in the commands below.
+
+<h3>Build the jar</h3>
+
+```bash
+# Linux / macOS
+./gradlew build
+
+# Windows
+gradlew.bat build
+```
+
+The first run downloads dependencies and can take several minutes. The build produces:
+
+```
+build/libs/Trivia-<version>.jar           <- the one to deploy
+build/libs/Trivia-<version>-sources.jar   <- source attachment, not for runtime
+```
+
+With the version in `gradle.properties` (currently `1.2.5+1.21.1`) the deployable file is:
+
+```
+build/libs/Trivia-1.2.5+1.21.1.jar
+```
+
+<h3>Install on a server</h3>
+
+1. Copy `build/libs/Trivia-<version>.jar` into the server's `mods/` directory.
+2. Ensure the server already has **Fabric Loader 0.14.10+** and **Fabric API**
+   (`fabric_version` in `gradle.properties` lists the version this build was tested against).
+3. Start the server. On first launch, `config/Trivia/` is generated with `config.properties`,
+   `questions.json`, `rewards.json` and `messages.json`.
+
+<h3>Troubleshooting the build</h3>
+
+- **`Could not find me.lucko:fabric-permissions-api:0.2-SNAPSHOT`** - the snapshot lives on
+  Lucko's Maven repo. Add it to `build.gradle` under `repositories { }`:
+  ```groovy
+  maven { url "https://maven.lucko.me/" }
+  ```
+- **`error: invalid target release: 17`** - your `JAVA_HOME` points at JDK < 17. Install a
+  newer JDK (Temurin, Adoptium, etc.) and re-export `JAVA_HOME`.
+- **Slow first build / partial download failures** - re-run `./gradlew build --refresh-dependencies`.
+
