@@ -9,7 +9,7 @@
     "repo": "https://github.com/RoanokeNetwork/Trivia"
   },
   "license": "All-Rights-Reserved",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "main": [
       "dev.roanoke.trivia.Trivia"
