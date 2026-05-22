@@ -129,6 +129,37 @@ Trivia reads the cache on startup and on `/trivia reload`.
 The mod is built with [Fabric Loom](https://fabricmc.net/wiki/tutorial:loom) / Gradle.
 Output is a single remapped `.jar` ready to drop into a server's `mods/` directory.
 
+<h3>Ubuntu quickstart (copy-paste)</h3>
+
+End-to-end on a fresh Ubuntu 22.04 / 24.04 install. Adjust the repo URL if you're
+building from a fork:
+
+```bash
+# 1. Install JDK 21 (works for the Java 17 target), git and Gradle
+sudo apt update
+sudo apt install -y openjdk-21-jdk git gradle
+
+# 2. Clone the repo
+git clone https://github.com/chloevinky/Trivia.git
+cd Trivia
+
+# 3. Generate the Gradle wrapper (the wrapper jar is gitignored)
+gradle wrapper
+
+# 4. Add Lucko's Maven repo for fabric-permissions-api (one-time fix-up)
+sed -i 's|mavenCentral()|mavenCentral()\n    maven { url "https://maven.lucko.me/" }|' build.gradle
+
+# 5. Build the deployable jar
+./gradlew build
+
+# 6. The jar to upload to your server:
+ls -lh build/libs/Trivia-*.jar
+```
+
+Copy `build/libs/Trivia-1.2.5+1.21.1.jar` into your Fabric server's `mods/` folder
+and restart the server. On first launch, `config/Trivia/` is created with the
+default questions, rewards and config files.
+
 <h3>Prerequisites</h3>
 
 - **JDK 17 or newer** (the build targets Java 17 bytecode). Verify with `java -version`.
