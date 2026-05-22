@@ -2,3 +2,5 @@
 /run/
 gradlew
 gradlew.bat
+/.gradle/
+/build/
