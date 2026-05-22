@@ -124,6 +124,12 @@ keyed by language code. You can hand-edit any entry to override the auto-transla
 
 Trivia reads the cache on startup and on `/trivia reload`.
 
+<h2>Prebuilt jar</h2>
+
+A ready-to-deploy jar is checked in at [`dist/Trivia-1.2.5+1.21.1.jar`](dist/Trivia-1.2.5+1.21.1.jar).
+Drop it into your Fabric server's `mods/` folder and restart. On first launch,
+`config/Trivia/` is created with the default questions, rewards and config files.
+
 <h2>Building from source</h2>
 
 The mod is built with [Fabric Loom](https://fabricmc.net/wiki/tutorial:loom) / Gradle.
