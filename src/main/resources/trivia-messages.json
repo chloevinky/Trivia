@@ -1,6 +1,7 @@
 {
   "trivia.prefix": "<white>[<gold>Trivia<white>]<reset>",
   "trivia.ask_question": "{prefix} {question}",
-  "trivia.no_answer": "{prefix} No one answered the question in time!",
+  "trivia.ask_question_bilingual": "{prefix} <white>{question_en}<reset><newline>{prefix} <gray>[{lang}]<reset> <white>{question_pt}<reset>",
+  "trivia.no_answer": "{prefix} No one answered the question in time! The answer was: <gold>{answer}<reset>",
   "trivia.correct_answer": "{prefix} <blue>{player} <reset>got the answer right in <blue>{time} seconds!<reset> They won a <gold>{reward}!"
 }

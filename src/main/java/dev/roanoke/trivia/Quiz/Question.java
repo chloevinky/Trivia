@@ -2,7 +2,6 @@ package dev.roanoke.trivia.Quiz;
 
 import java.util.List;
 
-// contains a question string, a list of possible answers, and a function to check if its the correct answer
 public class Question {
 
     public String question;
@@ -13,7 +12,5 @@ public class Question {
         this.question = question;
         this.answers = answers;
         this.difficulty = difficulty;
-        // PokeTrivia.LOGGER.info("Loaded question: " + question);
     }
-
 }

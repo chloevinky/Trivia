@@ -3,7 +3,7 @@
   "id": "trivia",
   "version": "${version}",
   "name": "Trivia",
-  "description": "A Trivia mod for Fabric 1.20.1+, configurable questions are asked in chats, the first person to answer is given an item as a reward (also configurable)",
+  "description": "Server-side Trivia mod for Fabric. Questions auto-post every 10 minutes (configurable) in English and pt-BR simultaneously. First correct answer wins a configurable item reward.",
   "authors": ["complacentdev", "Nisex"],
   "contact": {
     "repo": "https://github.com/RoanokeNetwork/Trivia"

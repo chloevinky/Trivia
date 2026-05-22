@@ -1,9 +1,10 @@
 package dev.roanoke.trivia.Reward;
 
+import dev.roanoke.trivia.Trivia;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-import dev.roanoke.trivia.Trivia;
 
 public class Reward {
 
@@ -16,14 +17,28 @@ public class Reward {
         this.itemName = itemName;
         this.itemDisplayName = itemDisplayName;
         this.quantity = quantity;
-        this.itemStack = getItemStack(itemName);
+        this.itemStack = buildItemStack(itemName, quantity);
 
-        Trivia.LOGGER.info("Reward item: " + itemDisplayName + " - itemName : " + itemName + " ItemStack: " + itemStack.toString());
+        if (this.itemStack == null) {
+            Trivia.LOGGER.warn("Reward item not registered: " + itemName + " (display name '" + itemDisplayName + "')");
+        }
     }
 
-    // take the itemName and return an ItemStack
-    public ItemStack getItemStack(String itemName) {
-        return new ItemStack(Registries.ITEM.get(Identifier.tryParse(itemName)), quantity);
+    private static ItemStack buildItemStack(String itemName, Integer quantity) {
+        if (itemName == null || itemName.isBlank()) {
+            return null;
+        }
+        Identifier id = Identifier.tryParse(itemName);
+        if (id == null) {
+            return null;
+        }
+        if (!Registries.ITEM.containsId(id)) {
+            return null;
+        }
+        if (Registries.ITEM.get(id) == Items.AIR) {
+            return null;
+        }
+        int qty = (quantity == null || quantity < 1) ? 1 : quantity;
+        return new ItemStack(Registries.ITEM.get(id), qty);
     }
-
 }
