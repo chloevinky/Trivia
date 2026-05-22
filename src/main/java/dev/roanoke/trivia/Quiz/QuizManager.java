@@ -1,14 +1,21 @@
 package dev.roanoke.trivia.Quiz;
 
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import dev.roanoke.trivia.Reward.Reward;
+import dev.roanoke.trivia.Reward.RewardManager;
+import dev.roanoke.trivia.Trivia;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import dev.roanoke.trivia.Trivia;
-import dev.roanoke.trivia.Reward.Reward;
-import dev.roanoke.trivia.Reward.RewardManager;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,138 +26,116 @@ public class QuizManager {
 
     private Question currentQuestion = null;
     private Long questionTime = System.currentTimeMillis();
-    private List<Question> questionPool = new ArrayList<>();
+    private final List<Question> questionPool = new ArrayList<>();
     private RewardManager rewardManager = null;
 
     public QuizManager() {
         try {
             ensureFilesExist();
-        } catch (IOException e) {
-            e.printStackTrace();
-            Trivia.LOGGER.error("Failed to copy built in default files to Config/Trivia");
+        } catch (Exception e) {
+            Trivia.LOGGER.error("Failed to copy default config files to Trivia config directory", e);
         }
         loadQuestions();
         loadRewards();
     }
 
-    public void ensureFilesExist() throws IOException {
-        // get the default fabric api config directory and then create a new file called "poketrivia.json"
+    public void ensureFilesExist() throws Exception {
         Path configPath = FabricLoader.getInstance().getConfigDir().resolve("Trivia");
-        File configFile = configPath.toFile();
-        if (!configFile.exists()) {
-            // create the file
-            try {
-                configFile.mkdirs();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        Files.createDirectories(configPath);
+
+        copyDefaultIfMissing("questions.json", configPath.resolve("questions.json"));
+        copyDefaultIfMissing("rewards.json", configPath.resolve("rewards.json"));
+    }
+
+    private void copyDefaultIfMissing(String resourceName, Path destination) throws Exception {
+        if (Files.exists(destination)) {
+            return;
         }
-        Path questionsPath = FabricLoader.getInstance().getConfigDir().resolve("Trivia/questions.json");
-        Path rewardsPath = FabricLoader.getInstance().getConfigDir().resolve("Trivia/rewards.json");
-        File questionsFile = questionsPath.toFile();
-        File rewardsFile = rewardsPath.toFile();
-        if (!questionsFile.exists()) {
-            questionsFile.createNewFile();
-            // create the file
-            InputStream in = Trivia.class.getResourceAsStream("/questions.json");
-
-            // Create a FileOutputStream to write the file to the directory
-            OutputStream out = new FileOutputStream(questionsFile);
-
-            // Use a buffer to read and write the file in chunks
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = in.read(buffer)) > 0) {
-                out.write(buffer, 0, length);
+        try (InputStream in = Trivia.class.getResourceAsStream("/" + resourceName)) {
+            if (in == null) {
+                Trivia.LOGGER.error("Default resource /" + resourceName + " missing from mod jar");
+                return;
             }
-
-            // Close the input and output streams
-            in.close();
-            out.close();
-        }
-        if (!rewardsFile.exists()) {
-            rewardsFile.createNewFile();
-
-            InputStream in = Trivia.class.getResourceAsStream("/rewards.json");
-
-            // Create a FileOutputStream to write the file to the directory
-            OutputStream out = new FileOutputStream(rewardsFile);
-
-            // Use a buffer to read and write the file in chunks
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = in.read(buffer)) > 0) {
-                out.write(buffer, 0, length);
-            }
-
-            // Close the input and output streams
-            in.close();
-            out.close();
+            Files.copy(in, destination);
         }
     }
 
-    // Load the questions from the config file
     public void loadQuestions() {
-        // get the default fabric api config directory and then create a new file called "poketrivia.json"
+        questionPool.clear();
         Path questionsPath = FabricLoader.getInstance().getConfigDir().resolve("Trivia/questions.json");
-        // create a file from the path if it does not exist
         File questionFile = questionsPath.toFile();
 
-
-        // Read the JSON file
-        JsonElement root;
-        try {
-            root = JsonParser.parseReader(new FileReader(questionFile));
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (!questionFile.exists()) {
+            Trivia.LOGGER.error("Questions file not found at " + questionsPath);
             return;
         }
 
-        // Get the "questions" object
-        JsonObject questionsObj = root.getAsJsonObject();
-        Trivia.LOGGER.info("Loading the questions...");
-        // Loop over the difficulty levels
-        for (String difficulty : questionsObj.keySet()) {
-            JsonArray questionsArr = questionsObj.get(difficulty).getAsJsonArray();
+        JsonElement root;
+        try (FileReader reader = new FileReader(questionFile, StandardCharsets.UTF_8)) {
+            root = JsonParser.parseReader(reader);
+        } catch (Exception e) {
+            Trivia.LOGGER.error("Failed to parse questions.json", e);
+            return;
+        }
 
-            // Loop over the questions in the difficulty level
+        if (root == null || !root.isJsonObject()) {
+            Trivia.LOGGER.error("questions.json root is not a JSON object");
+            return;
+        }
+
+        JsonObject questionsObj = root.getAsJsonObject();
+        Trivia.LOGGER.info("Loading questions...");
+
+        for (String difficulty : questionsObj.keySet()) {
+            JsonElement difficultyElem = questionsObj.get(difficulty);
+            if (!difficultyElem.isJsonArray()) continue;
+            JsonArray questionsArr = difficultyElem.getAsJsonArray();
+
             for (JsonElement questionElem : questionsArr) {
+                if (!questionElem.isJsonObject()) continue;
                 JsonObject questionObj = questionElem.getAsJsonObject();
 
-                // Get the question text
-                String questionText = questionObj.get("question").getAsString();
+                if (!questionObj.has("question") || !questionObj.has("answers")) {
+                    Trivia.LOGGER.warn("Skipping malformed question entry in pool '" + difficulty + "'");
+                    continue;
+                }
 
-                // Get the list of answers
+                String questionText = questionObj.get("question").getAsString();
                 JsonArray answersArr = questionObj.get("answers").getAsJsonArray();
                 List<String> answers = new ArrayList<>();
                 for (JsonElement answerElem : answersArr) {
                     answers.add(answerElem.getAsString().toLowerCase());
                 }
+                if (answers.isEmpty()) continue;
 
-                // Create the TriviaQuestion object and add it to the list
-                Question question = new Question(questionText, answers, difficulty);
-                questionPool.add(question);
+                questionPool.add(new Question(questionText, answers, difficulty));
             }
         }
         Trivia.LOGGER.info("Loaded " + questionPool.size() + " questions.");
     }
 
     public void loadRewards() {
-        // get the default fabric api config directory and then create a new file called "poketrivia.json"
         Path rewardsPath = FabricLoader.getInstance().getConfigDir().resolve("Trivia/rewards.json");
-        // create a file from the path if it does not exist
         File rewardsFile = rewardsPath.toFile();
 
-        JsonElement root;
-        try {
-            root = JsonParser.parseReader(new FileReader(rewardsFile));
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (!rewardsFile.exists()) {
+            Trivia.LOGGER.error("Rewards file not found at " + rewardsPath);
             return;
         }
 
-        JsonObject rewardsObj = root.getAsJsonObject();
-        rewardManager = new RewardManager(rewardsObj);
+        JsonElement root;
+        try (FileReader reader = new FileReader(rewardsFile, StandardCharsets.UTF_8)) {
+            root = JsonParser.parseReader(reader);
+        } catch (Exception e) {
+            Trivia.LOGGER.error("Failed to parse rewards.json", e);
+            return;
+        }
+
+        if (root == null || !root.isJsonObject()) {
+            Trivia.LOGGER.error("rewards.json root is not a JSON object");
+            return;
+        }
+        rewardManager = new RewardManager(root.getAsJsonObject());
     }
 
     public Boolean quizInProgress() {
@@ -158,7 +143,8 @@ public class QuizManager {
     }
 
     public Boolean isRightAnswer(String guess) {
-        for (String answer: currentQuestion.answers) {
+        if (currentQuestion == null) return false;
+        for (String answer : currentQuestion.answers) {
             if (answer.equalsIgnoreCase(guess)) {
                 return true;
             }
@@ -167,48 +153,68 @@ public class QuizManager {
     }
 
     public void startQuiz(MinecraftServer server) {
-        // Get a random question from the pool
+        if (questionPool.isEmpty()) {
+            Trivia.LOGGER.warn("Cannot start quiz - question pool is empty");
+            return;
+        }
+
         currentQuestion = questionPool.get((int) (Math.random() * questionPool.size()));
-
-        server.getPlayerManager().getPlayerList().forEach(serverPlayer -> serverPlayer.sendMessage(
-                Trivia.messages.getDisplayText(
-                        Trivia.messages.getMessage("trivia.ask_question",
-                                Map.of("{question}", currentQuestion.question))
-                )
-        ));
-
-        // Set the time the question was asked
         questionTime = System.currentTimeMillis();
+
+        String englishText = currentQuestion.question;
+        String translatedText = null;
+        boolean bilingual = Trivia.getInstance().config.isBilingualMode();
+        String targetLang = Trivia.getInstance().config.getSecondaryLanguage();
+
+        if (bilingual && Trivia.translations != null && Trivia.translations.isEnabled()) {
+            long timeout = Trivia.getInstance().config.getTranslationTimeoutMs();
+            translatedText = Trivia.translations.getOrFetch(englishText, targetLang, timeout);
+        }
+
+        String messageKey = (bilingual && translatedText != null)
+                ? "trivia.ask_question_bilingual"
+                : "trivia.ask_question";
+
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("{question}", englishText);
+        placeholders.put("{question_en}", englishText);
+        placeholders.put("{question_pt}", translatedText == null ? englishText : translatedText);
+        placeholders.put("{lang}", targetLang);
+
+        broadcast(server, Trivia.messages.getMessage(messageKey, placeholders));
     }
 
     public void processQuizWinner(ServerPlayerEntity player, MinecraftServer server) {
-        Reward reward = rewardManager.giveReward(player, currentQuestion);
+        if (currentQuestion == null) return;
+
+        Reward reward = rewardManager == null ? null : rewardManager.giveReward(player, currentQuestion);
+
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("{player}", player.getGameProfile().getName());
-        placeholders.put("{reward}", reward.itemDisplayName == null ? "REWARD_ERROR" : reward.itemDisplayName);
+        placeholders.put("{reward}",
+                (reward == null || reward.itemDisplayName == null) ? "REWARD_ERROR" : reward.itemDisplayName);
         placeholders.put("{time}", String.valueOf(((System.currentTimeMillis() - questionTime) / 1000)));
         placeholders.put("{answer}", String.join(", ", currentQuestion.answers));
 
-        server.getPlayerManager().getPlayerList().forEach(serverPlayer -> serverPlayer.sendMessage(
-                Trivia.messages.getDisplayText(
-                        Trivia.messages.getMessage("trivia.correct_answer", placeholders)
-                )
-        ));
-
+        broadcast(server, Trivia.messages.getMessage("trivia.correct_answer", placeholders));
         currentQuestion = null;
     }
 
     public void timeOutQuiz(MinecraftServer server) {
-        if (currentQuestion == null) {
-            return;
-        }
+        if (currentQuestion == null) return;
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("{answer}", String.join(", ", currentQuestion.answers));
 
-        server.getPlayerManager().getPlayerList().forEach(serverPlayer -> serverPlayer.sendMessage(
-                Trivia.messages.getDisplayText(Trivia.messages.getMessage("trivia.no_answer", placeholders)))
-        );
-        this.currentQuestion = null;
+        broadcast(server, Trivia.messages.getMessage("trivia.no_answer", placeholders));
+        currentQuestion = null;
     }
 
+    private void broadcast(MinecraftServer server, String miniMessage) {
+        server.getPlayerManager().getPlayerList().forEach(player ->
+                player.sendMessage(Trivia.messages.getDisplayText(miniMessage)));
+    }
+
+    public List<Question> questionPoolCopy() {
+        return new ArrayList<>(questionPool);
+    }
 }
